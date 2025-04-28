@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gemini 챗봇 🎙️</title>
+  <title>Gemini 챗봇</title>
 
   <style>
     * { box-sizing: border-box; }
@@ -24,11 +24,6 @@
       height: 100%;
       width: 100%;
       padding: 10px;
-    }
-
-    h2 {
-      text-align: center;
-      margin: 10px 0;
     }
 
     #chat {
@@ -94,13 +89,12 @@
       padding: 15px;
     }
 
-    /* ✅ 고급 버튼 스타일 */
     .action-button {
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      border: 2px solid #fff; /* 하얀 테두리 */
-      background: #000; /* 검정 배경 */
+      border: 2px solid #fff;
+      background: #000;
       color: #fff;
       font-size: 18px;
       display: flex;
@@ -111,7 +105,7 @@
     }
 
     .action-button:hover {
-      background: #333; /* 호버 시 약간 밝은 검정 */
+      background: #333;
     }
 
     .mic-button.active {
@@ -124,9 +118,7 @@
       border-color: #28a745;
     }
 
-    /* 모바일 최적화 */
     @media (max-width: 600px) {
-      h2 { font-size: 1.5em; }
       .user-message, .bot-message { font-size: 14px; }
       #msg { font-size: 16px; }
       #msg:focus { font-size: 20px; padding: 12px; }
@@ -137,24 +129,24 @@
 
 <body>
   <div id="chat-container">
-    <h2>Gemini 챗봇 🎙️</h2>
     <div id="chat"></div>
     <div class="chat-input-container">
       <textarea id="msg" placeholder="메시지를 입력하세요" oninput="checkInput()"></textarea>
-      <button onclick="handleButton()" class="action-button" id="action-btn" disabled>➤</button>
-      <button onclick="startVoice()" id="mic-btn" class="mic-button action-button">🎤</button>
-      <button onclick="toggleVoiceMode()" id="speak-btn" class="speak-button action-button">🔈</button>
-    </div>
+          </div>
   </div>
 
 <script>
 const msgInput = document.getElementById("msg");
 const actionBtn = document.getElementById("action-btn");
-let voiceMode = false;
-let chatHistory = [];
+const chatDiv = document.getElementById("chat");
+
 let isTyping = false;
 let typingStop = false;
-const chatDiv = document.getElementById("chat");
+let voiceMode = false;
+let chatHistory = [];
+
+// ✅ 여기에 본인 GAS 웹앱 URL 넣으세요
+const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzQkypdnak5WGhD29JHxIBYiuOexB9DbKqrZ3dv9Cl154qlwrW0BGfPD89ZPrQvkQm9/exec';
 
 function scrollToBottom() {
   chatDiv.scrollTo({ top: chatDiv.scrollHeight, behavior: 'smooth' });
@@ -165,10 +157,6 @@ function checkInput() {
   if (!isTyping) {
     actionBtn.disabled = !message;
   }
-}
-
-function formatBotReply(text) {
-  return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:blue;">$1</a>');
 }
 
 function handleButton() {
@@ -194,46 +182,43 @@ function send() {
 
   chatHistory.push({ role: "user", content: message });
 
-  google.script.run.withSuccessHandler(function(reply) {
+  fetch(GAS_WEBAPP_URL, {
+    method: 'POST',
+    body: JSON.stringify({ message: makePrompt(chatHistory) }),
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(response => response.json())
+  .then(data => {
     document.getElementById("waiting-msg")?.remove();
-    actionBtn.innerHTML = '➤';
-    actionBtn.disabled = true;
-    isTyping = true;
-
-    const botMessageDiv = document.createElement('div');
-    botMessageDiv.classList.add('bot-message');
-    chatDiv.appendChild(botMessageDiv);
-
-    const botReplyDiv = document.createElement('div');
-    botReplyDiv.classList.add('bot-reply');
-    botMessageDiv.appendChild(botReplyDiv);
-
-    typeReply(botReplyDiv, formatBotReply(reply));
-
-    chatHistory.push({ role: "bot", content: reply });
-
-    if (voiceMode) {
-      const speech = new SpeechSynthesisUtterance(reply);
-      speech.lang = 'ko-KR';
-      speech.rate = 1.1;
-      window.speechSynthesis.speak(speech);
-    }
-
-  }).withFailureHandler(function(error) {
+    const reply = data.reply || "❗ 오류: 응답 없음";
+    showBotReply(reply);
+  })
+  .catch(error => {
+    console.error('통신 오류:', error);
     document.getElementById("waiting-msg")?.remove();
     chatDiv.innerHTML += `<div class="bot-message">❗ 오류 발생: 다시 시도해주세요.</div>`;
-    actionBtn.innerHTML = '➤';
-    actionBtn.disabled = false;
-    isTyping = false;
-    scrollToBottom();
-  }).callGemini(makePrompt(chatHistory));
+  });
+}
 
-  actionBtn.innerHTML = '⏹️';
+function showBotReply(text) {
+  const botMessageDiv = document.createElement('div');
+  botMessageDiv.classList.add('bot-message');
+  chatDiv.appendChild(botMessageDiv);
+
+  const botReplyDiv = document.createElement('div');
+  botReplyDiv.classList.add('bot-reply');
+  botMessageDiv.appendChild(botReplyDiv);
+
+  typeReply(botReplyDiv, text);
+  chatHistory.push({ role: "bot", content: text });
+  scrollToBottom();
 }
 
 function typeReply(target, text, speed = 20) {
   let i = 0;
   typingStop = false;
+  isTyping = true;
+  actionBtn.innerHTML = '⏹️';
 
   function typing() {
     if (i < text.length && !typingStop) {
@@ -253,45 +238,16 @@ function stopTyping() {
   typingStop = true;
 }
 
-function startVoice() {
-  if (!('webkitSpeechRecognition' in window)) {
-    alert("이 브라우저는 음성 인식을 지원하지 않습니다.");
-    return;
-  }
-  const recognition = new webkitSpeechRecognition();
-  recognition.lang = 'ko-KR';
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-
-  recognition.onstart = () => document.getElementById('mic-btn').classList.add('active');
-  recognition.onend = () => document.getElementById('mic-btn').classList.remove('active');
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    document.getElementById("msg").value = transcript;
-    checkInput();
-    send();
-  };
-
-  recognition.start();
-}
-
-function toggleVoiceMode() {
-  voiceMode = !voiceMode;
-  document.getElementById('speak-btn').classList.toggle('active', voiceMode);
-}
-
 function makePrompt(history) {
   return history.map(item =>
     (item.role === "user" ? `사용자: ${item.content}` : `봇: ${item.content}`)
   ).join('\n') + "\n\n참고: 사용자가 대화를 이어가고자 한다면 자연스럽게 이어가세요.";
 }
 
-window.onload = () => {
-  msgInput.focus();
-  scrollToBottom();
-};
+// ✅ 컴퓨터 vs 모바일 키보드 구분
 msgInput.addEventListener("keypress", function(event) {
-  if (event.key === "Enter" && !event.shiftKey) {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (event.key === "Enter" && !isMobile && !event.shiftKey) {
     event.preventDefault();
     actionBtn.click();
   }
