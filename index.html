@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini 챗봇 🎙️</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: 'Google Sans', sans-serif;
+      background: #f8f9fa;
+      overflow: hidden;
+    }
+
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      padding: 10px;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    #chat {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-message {
+      max-width: 80%;
+      padding: 10px 15px;
+      margin: 6px 0;
+      border-radius: 20px;
+      font-size: 15px;
+      word-break: break-word;
+      background: #d0f0fd;
+      align-self: flex-end;
+      text-align: right;
+      line-height: 1.5;
+    }
+
+    .bot-message {
+      max-width: 100%;
+      margin: 6px 0;
+      font-size: 15px;
+      word-break: break-word;
+      align-self: flex-start;
+      text-align: left;
+      white-space: pre-wrap;
+      background: none;
+      padding: 0;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      align-items: center;
+      width: 100%;
+      box-sizing: border-box;
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+
+    #msg {
+      flex: 1;
+      width: 100%;
+      min-height: 40px;
+      font-size: 14px;
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      resize: none;
+    }
+
+    #msg:focus {
+      font-size: 18px;
+      padding: 15px;
+    }
+
+    /* ✅ 고급 버튼 스타일 */
+    .action-button {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #fff; /* 하얀 테두리 */
+      background: #000; /* 검정 배경 */
+      color: #fff;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .action-button:hover {
+      background: #333; /* 호버 시 약간 밝은 검정 */
+    }
+
+    .mic-button.active {
+      background: #ff5252;
+      border-color: #ff5252;
+    }
+
+    .speak-button.active {
+      background: #28a745;
+      border-color: #28a745;
+    }
+
+    /* 모바일 최적화 */
+    @media (max-width: 600px) {
+      h2 { font-size: 1.5em; }
+      .user-message, .bot-message { font-size: 14px; }
+      #msg { font-size: 16px; }
+      #msg:focus { font-size: 20px; padding: 12px; }
+      .action-button { width: 32px; height: 32px; font-size: 16px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="chat-container">
+    <h2>Gemini 챗봇 🎙️</h2>
+    <div id="chat"></div>
+    <div class="chat-input-container">
+      <textarea id="msg" placeholder="메시지를 입력하세요" oninput="checkInput()"></textarea>
+      <button onclick="handleButton()" class="action-button" id="action-btn" disabled>➤</button>
+      <button onclick="startVoice()" id="mic-btn" class="mic-button action-button">🎤</button>
+      <button onclick="toggleVoiceMode()" id="speak-btn" class="speak-button action-button">🔈</button>
+    </div>
+  </div>
+
+<script>
+const msgInput = document.getElementById("msg");
+const actionBtn = document.getElementById("action-btn");
+let voiceMode = false;
+let chatHistory = [];
+let isTyping = false;
+let typingStop = false;
+const chatDiv = document.getElementById("chat");
+
+function scrollToBottom() {
+  chatDiv.scrollTo({ top: chatDiv.scrollHeight, behavior: 'smooth' });
+}
+
+function checkInput() {
+  const message = msgInput.value.trim();
+  if (!isTyping) {
+    actionBtn.disabled = !message;
+  }
+}
+
+function formatBotReply(text) {
+  return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:blue;">$1</a>');
+}
+
+function handleButton() {
+  if (isTyping) {
+    stopTyping();
+  } else {
+    send();
+  }
+}
+
+function send() {
+  const message = msgInput.value.trim();
+  if (!message) return;
+
+  chatDiv.innerHTML += `<div class="user-message">${message}</div>`;
+  msgInput.value = "";
+  actionBtn.disabled = true;
+  checkInput();
+  scrollToBottom();
+
+  chatDiv.innerHTML += `<div class="bot-message" id="waiting-msg">⏳ 답변 생성 중...</div>`;
+  scrollToBottom();
+
+  chatHistory.push({ role: "user", content: message });
+
+  google.script.run.withSuccessHandler(function(reply) {
+    document.getElementById("waiting-msg")?.remove();
+    actionBtn.innerHTML = '➤';
+    actionBtn.disabled = true;
+    isTyping = true;
+
+    const botMessageDiv = document.createElement('div');
+    botMessageDiv.classList.add('bot-message');
+    chatDiv.appendChild(botMessageDiv);
+
+    const botReplyDiv = document.createElement('div');
+    botReplyDiv.classList.add('bot-reply');
+    botMessageDiv.appendChild(botReplyDiv);
+
+    typeReply(botReplyDiv, formatBotReply(reply));
+
+    chatHistory.push({ role: "bot", content: reply });
+
+    if (voiceMode) {
+      const speech = new SpeechSynthesisUtterance(reply);
+      speech.lang = 'ko-KR';
+      speech.rate = 1.1;
+      window.speechSynthesis.speak(speech);
+    }
+
+  }).withFailureHandler(function(error) {
+    document.getElementById("waiting-msg")?.remove();
+    chatDiv.innerHTML += `<div class="bot-message">❗ 오류 발생: 다시 시도해주세요.</div>`;
+    actionBtn.innerHTML = '➤';
+    actionBtn.disabled = false;
+    isTyping = false;
+    scrollToBottom();
+  }).callGemini(makePrompt(chatHistory));
+
+  actionBtn.innerHTML = '⏹️';
+}
+
+function typeReply(target, text, speed = 20) {
+  let i = 0;
+  typingStop = false;
+
+  function typing() {
+    if (i < text.length && !typingStop) {
+      target.innerHTML += text[i++];
+      setTimeout(typing, speed);
+      scrollToBottom();
+    } else {
+      isTyping = false;
+      actionBtn.innerHTML = '➤';
+      checkInput();
+    }
+  }
+  typing();
+}
+
+function stopTyping() {
+  typingStop = true;
+}
+
+function startVoice() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("이 브라우저는 음성 인식을 지원하지 않습니다.");
+    return;
+  }
+  const recognition = new webkitSpeechRecognition();
+  recognition.lang = 'ko-KR';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => document.getElementById('mic-btn').classList.add('active');
+  recognition.onend = () => document.getElementById('mic-btn').classList.remove('active');
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById("msg").value = transcript;
+    checkInput();
+    send();
+  };
+
+  recognition.start();
+}
+
+function toggleVoiceMode() {
+  voiceMode = !voiceMode;
+  document.getElementById('speak-btn').classList.toggle('active', voiceMode);
+}
+
+function makePrompt(history) {
+  return history.map(item =>
+    (item.role === "user" ? `사용자: ${item.content}` : `봇: ${item.content}`)
+  ).join('\n') + "\n\n참고: 사용자가 대화를 이어가고자 한다면 자연스럽게 이어가세요.";
+}
+
+window.onload = () => {
+  msgInput.focus();
+  scrollToBottom();
+};
+msgInput.addEventListener("keypress", function(event) {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    actionBtn.click();
+  }
+});
+</script>
+</body>
+</html>
