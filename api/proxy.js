@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message } = JSON.parse(req.body);
+    const { message } = req.body; // ✅ 여기 수정! JSON.parse 필요 없음
 
     const gasUrl = 'https://script.google.com/macros/s/AKfycbwNhhKhEg2y8oRqXO4idWi0VZnSEnQ6J495JL-8dioh8TAyKpPz-ayBao_ugWbYu1IG/exec'; // 여기에 본인 GAS URL
 
