@@ -128,7 +128,7 @@ function send() {
   chatDiv.innerHTML += `<div class="bot-message" id="waiting-msg">⏳ 답변 생성 중...</div>`;
   scrollToBottom();
 
-  fetch('https://script.google.com/macros/s/AKfycbwNhhKhEg2y8oRqXO4idWi0VZnSEnQ6J495JL-8dioh8TAyKpPz-ayBao_ugWbYu1IG/exec', {
+  fetch('/api/proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: message })
