@@ -129,25 +129,29 @@ function send() {
   scrollToBottom();
 
   fetch(GAS_WEBAPP_URL, {
-    method: 'POST', // ✅ 확실하게 POST 메서드 지정
+    method: 'POST',
     headers: {
-      'Content-Type': 'application/json' // ✅ Content-Type 지정
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ message: message }) // ✅ 요청 본문 JSON 형태로 전송
+    body: JSON.stringify({ message: message })
   })
-  .then(response => response.json())
-.then(data => {
-  console.log("서버 응답:", data); // 이 부분을 다시 확인
-  document.getElementById("waiting-msg")?.remove();
-  chatDiv.innerHTML += `<div class="bot-message">${data.reply}</div>`;
-  scrollToBottom();
-})
-.catch(error => {
-  console.error("Fetch 오류:", error);
-  document.getElementById("waiting-msg")?.remove();
-  chatDiv.innerHTML += `<div class="bot-message">❗ 오류 발생</div>`;
-  scrollToBottom();
-});
+  .then(response => {
+    // ✅ 응답 텍스트를 먼저 콘솔에 출력
+    response.text().then(text => console.log("서버 응답 (텍스트):", text));
+    return response.json(); // JSON으로 파싱
+  })
+  .then(data => {
+    console.log("서버 응답 (JSON):", data); // JSON 파싱 후 데이터 확인
+    document.getElementById("waiting-msg")?.remove();
+    chatDiv.innerHTML += `<div class="bot-message">${data.reply}</div>`;
+    scrollToBottom();
+  })
+  .catch(error => {
+    console.error("Fetch 오류:", error);
+    document.getElementById("waiting-msg")?.remove();
+    chatDiv.innerHTML += `<div class="bot-message">❗ 오류 발생</div>`;
+    scrollToBottom();
+  });
 }
 
 function startVoice() {
