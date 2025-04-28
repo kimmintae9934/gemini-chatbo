@@ -7,7 +7,6 @@
 
   <style>
     * { box-sizing: border-box; }
-
     html, body {
       margin: 0;
       padding: 0;
@@ -17,7 +16,6 @@
       background: #f8f9fa;
       overflow: hidden;
     }
-
     #chat-container {
       display: flex;
       flex-direction: column;
@@ -25,7 +23,6 @@
       width: 100%;
       padding: 10px;
     }
-
     #chat {
       flex: 1;
       background: #fff;
@@ -36,32 +33,25 @@
       display: flex;
       flex-direction: column;
     }
-
-    .user-message {
+    .user-message, .bot-message {
       max-width: 80%;
       padding: 10px 15px;
       margin: 6px 0;
       border-radius: 20px;
       font-size: 15px;
       word-break: break-word;
+      line-height: 1.5;
+    }
+    .user-message {
       background: #d0f0fd;
       align-self: flex-end;
       text-align: right;
-      line-height: 1.5;
     }
-
     .bot-message {
-      max-width: 100%;
-      margin: 6px 0;
-      font-size: 15px;
-      word-break: break-word;
+      background: #f1f1f1;
       align-self: flex-start;
       text-align: left;
-      white-space: pre-wrap;
-      background: none;
-      padding: 0;
     }
-
     .chat-input-container {
       display: flex;
       gap: 6px;
@@ -69,10 +59,7 @@
       align-items: center;
       width: 100%;
       box-sizing: border-box;
-      padding-left: 10px;
-      padding-right: 10px;
     }
-
     #msg {
       flex: 1;
       width: 100%;
@@ -83,46 +70,22 @@
       border-radius: 20px;
       resize: none;
     }
-
     #msg:focus {
       font-size: 18px;
       padding: 15px;
     }
-
     .action-button {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      border: 2px solid #fff;
-      background: #000;
-      color: #fff;
+      background: black;
+      color: white;
+      border: 2px solid white;
       font-size: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: background-color 0.3s, color 0.3s;
-    }
-
-    .action-button:hover {
-      background: #333;
-    }
-
-    .mic-button.active {
-      background: #ff5252;
-      border-color: #ff5252;
-    }
-
-    .speak-button.active {
-      background: #28a745;
-      border-color: #28a745;
-    }
-
-    @media (max-width: 600px) {
-      .user-message, .bot-message { font-size: 14px; }
-      #msg { font-size: 16px; }
-      #msg:focus { font-size: 20px; padding: 12px; }
-      .action-button { width: 32px; height: 32px; font-size: 16px; }
     }
   </style>
 </head>
@@ -132,18 +95,15 @@
     <div id="chat"></div>
     <div class="chat-input-container">
       <textarea id="msg" placeholder="메시지를 입력하세요" oninput="checkInput()"></textarea>
-          </div>
+      <button onclick="send()" class="action-button" id="send-btn" disabled>➤</button>
+      <button onclick="startVoice()" class="action-button">🎤</button>
+    </div>
   </div>
 
 <script>
 const msgInput = document.getElementById("msg");
-const actionBtn = document.getElementById("action-btn");
+const sendBtn = document.getElementById("send-btn");
 const chatDiv = document.getElementById("chat");
-
-let isTyping = false;
-let typingStop = false;
-let voiceMode = false;
-let chatHistory = [];
 
 // ✅ 여기에 본인 GAS 웹앱 URL 넣으세요
 const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzQkypdnak5WGhD29JHxIBYiuOexB9DbKqrZ3dv9Cl154qlwrW0BGfPD89ZPrQvkQm9/exec';
@@ -153,18 +113,7 @@ function scrollToBottom() {
 }
 
 function checkInput() {
-  const message = msgInput.value.trim();
-  if (!isTyping) {
-    actionBtn.disabled = !message;
-  }
-}
-
-function handleButton() {
-  if (isTyping) {
-    stopTyping();
-  } else {
-    send();
-  }
+  sendBtn.disabled = msgInput.value.trim() === '';
 }
 
 function send() {
@@ -172,84 +121,53 @@ function send() {
   if (!message) return;
 
   chatDiv.innerHTML += `<div class="user-message">${message}</div>`;
-  msgInput.value = "";
-  actionBtn.disabled = true;
-  checkInput();
+  msgInput.value = '';
+  sendBtn.disabled = true;
   scrollToBottom();
 
   chatDiv.innerHTML += `<div class="bot-message" id="waiting-msg">⏳ 답변 생성 중...</div>`;
   scrollToBottom();
 
-  chatHistory.push({ role: "user", content: message });
-
   fetch(GAS_WEBAPP_URL, {
     method: 'POST',
-    body: JSON.stringify({ message: makePrompt(chatHistory) }),
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: message })
   })
   .then(response => response.json())
   .then(data => {
     document.getElementById("waiting-msg")?.remove();
-    const reply = data.reply || "❗ 오류: 응답 없음";
-    showBotReply(reply);
+    chatDiv.innerHTML += `<div class="bot-message">${data.reply}</div>`;
+    scrollToBottom();
   })
   .catch(error => {
-    console.error('통신 오류:', error);
     document.getElementById("waiting-msg")?.remove();
-    chatDiv.innerHTML += `<div class="bot-message">❗ 오류 발생: 다시 시도해주세요.</div>`;
+    chatDiv.innerHTML += `<div class="bot-message">❗ 오류 발생</div>`;
+    scrollToBottom();
   });
 }
 
-function showBotReply(text) {
-  const botMessageDiv = document.createElement('div');
-  botMessageDiv.classList.add('bot-message');
-  chatDiv.appendChild(botMessageDiv);
-
-  const botReplyDiv = document.createElement('div');
-  botReplyDiv.classList.add('bot-reply');
-  botMessageDiv.appendChild(botReplyDiv);
-
-  typeReply(botReplyDiv, text);
-  chatHistory.push({ role: "bot", content: text });
-  scrollToBottom();
-}
-
-function typeReply(target, text, speed = 20) {
-  let i = 0;
-  typingStop = false;
-  isTyping = true;
-  actionBtn.innerHTML = '⏹️';
-
-  function typing() {
-    if (i < text.length && !typingStop) {
-      target.innerHTML += text[i++];
-      setTimeout(typing, speed);
-      scrollToBottom();
-    } else {
-      isTyping = false;
-      actionBtn.innerHTML = '➤';
-      checkInput();
-    }
+function startVoice() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert('이 브라우저는 음성 인식을 지원하지 않습니다.');
+    return;
   }
-  typing();
+  const recognition = new webkitSpeechRecognition();
+  recognition.lang = 'ko-KR';
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    msgInput.value = transcript;
+    checkInput();
+    send();
+  };
+  recognition.start();
 }
 
-function stopTyping() {
-  typingStop = true;
-}
-
-function makePrompt(history) {
-  return history.map(item =>
-    (item.role === "user" ? `사용자: ${item.content}` : `봇: ${item.content}`)
-  ).join('\n') + "\n\n참고: 사용자가 대화를 이어가고자 한다면 자연스럽게 이어가세요.";
-}
-
-// ✅ 컴퓨터 vs 모바일 키보드 구분
+// ✅ 데스크탑에서는 Enter 키 누르면 전송
 msgInput.addEventListener("keypress", function(event) {
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
   if (event.key === "Enter" && !isMobile && !event.shiftKey) {
     event.preventDefault();
-    actionBtn.click();
+    send();
   }
 });
 </script>
