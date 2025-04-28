@@ -4,9 +4,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message } = req.body; // ✅ 여기 수정! JSON.parse 필요 없음
+    const { message } = req.body;
 
-    const gasUrl = 'https://script.google.com/macros/s/AKfycbwNhhKhEg2y8oRqXO4idWi0VZnSEnQ6J495JL-8dioh8TAyKpPz-ayBao_ugWbYu1IG/exec'; // 여기에 본인 GAS URL
+    const gasUrl = 'const gasUrl = 'https://script.google.com/macros/s/AKfycbwNhhKhEg2y8oRqXO4idWi0VZnSEnQ6J495JL-8dioh8TAyKpPz-ayBao_ugWbYu1IG/exec'; // 여기에 본인 GAS URL'; // 본인 GAS URL
 
     const response = await fetch(gasUrl, {
       method: 'POST',
@@ -14,9 +14,10 @@ export default async function handler(req, res) {
       body: JSON.stringify({ message }),
     });
 
-    const data = await response.json();
+    const text = await response.text(); // ⚡ 여기!
+    const data = JSON.parse(text);      // ⚡ 여기!
 
-    return res.status(200).json(data);
+    return res.status(200).json({ reply: data.reply });
 
   } catch (error) {
     console.error('Proxy error:', error);
