@@ -136,18 +136,18 @@ function send() {
     body: JSON.stringify({ message: message }) // ✅ 요청 본문 JSON 형태로 전송
   })
   .then(response => response.json())
-  .then(data => {
-    console.log("서버 응답:", data); // 응답 확인
-    document.getElementById("waiting-msg")?.remove();
-    chatDiv.innerHTML += `<div class="bot-message">${data.reply}</div>`;
-    scrollToBottom();
-  })
-  .catch(error => {
-    console.error("Fetch 오류:", error); // 오류 로깅
-    document.getElementById("waiting-msg")?.remove();
-    chatDiv.innerHTML += `<div class="bot-message">❗ 오류 발생</div>`;
-    scrollToBottom();
-  });
+.then(data => {
+  console.log("서버 응답:", data); // 이 부분을 다시 확인
+  document.getElementById("waiting-msg")?.remove();
+  chatDiv.innerHTML += `<div class="bot-message">${data.reply}</div>`;
+  scrollToBottom();
+})
+.catch(error => {
+  console.error("Fetch 오류:", error);
+  document.getElementById("waiting-msg")?.remove();
+  chatDiv.innerHTML += `<div class="bot-message">❗ 오류 발생</div>`;
+  scrollToBottom();
+});
 }
 
 function startVoice() {
